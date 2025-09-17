@@ -659,7 +659,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
 
           // Image display area
           GestureDetector(
-            onTap: _showImageSourceDialog,
+            onTap: _isProcessing ? null : _showImageSourceDialog,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: 280,
@@ -700,15 +700,15 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                           child: Image.file(
                             _selectedImage!,
                             fit: BoxFit.cover,
+                            height: 280,
                             width: double.infinity,
-                            height: double.infinity,
                           ),
                         ),
                         Positioned(
-                          top: 12,
-                          right: 12,
+                          top: 8.0,
+                          right: 8.0,
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(3),
                             decoration: BoxDecoration(
                               color: AppTheme.successGreen,
                               borderRadius: BorderRadius.circular(12),
@@ -720,13 +720,27 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.check_rounded,
-                              color: Colors.white,
+                            child: Icon(
+                              Icons.check,
+                               color: Colors.white,
+                              // color: Colors.white,
                               size: 20,
+                              weight: 700,
                             ),
                           ),
                         ),
+                        if (_isProcessing)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: AppTheme.primaryPurple,
+                              ),
+                            ),
+                          ),
                       ],
                     )
                   : Center(
@@ -793,7 +807,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Document ready for processing',
+                    _isProcessing ? 'Document is processing...' : 'Document ready for processing',
                     style: TextStyle(
                       color: AppTheme.successGreen,
                       fontWeight: FontWeight.w600,
@@ -937,82 +951,84 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              ..._processingResult!.formFields.entries.map((entry) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppTheme.lightGray, Colors.white],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.primaryPurple.withOpacity(0.2),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryPurple.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.lightGray, Colors.white],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Field name - styled as a label
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryPurple.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            color: AppTheme.primaryPurple,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Field value - emphasized and distinct
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.primaryPurple.withOpacity(0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryPurple.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.primaryPurple.withOpacity(0.2),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryPurple.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _processingResult!.formFields.entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          entry.value,
-                          style: TextStyle(
-                            color: AppTheme.darkGray,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            height: 1.3,
+                            // decoration: BoxDecoration(
+                            //   color: AppTheme.primaryPurple.withOpacity(0.1),
+                            //   borderRadius: BorderRadius.circular(8),
+                            // ),
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                color: AppTheme.primaryPurple,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
-                        ),
+                          // const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryPurple.withOpacity(0.2),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryPurple.withOpacity(0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              entry.value,
+                              style: TextStyle(
+                                color: AppTheme.darkGray,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              }).toList(),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
           ),
         ],
