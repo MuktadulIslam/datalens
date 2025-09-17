@@ -4,11 +4,24 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:datalens/core/utils/logger.dart';
 import 'package:datalens/features/image_processor/model/image_processing_response.dart';
+import 'dart:async'; // Added for StreamSubscription and Completer
 
 /// Service class for handling image processing API calls
 class ImageProcessingService {
   /// Base URL for the API - you can configure this in app_config later
   static const String _baseUrl = 'https://datalens-541929b8c017.herokuapp.com'; // Replace with your actual API endpoint
+
+  StreamSubscription<String>? _subscription;
+  Completer<ImageProcessingResponse>? _completer;
+
+  void cancelProcessing() {
+    _subscription?.cancel();
+    if (_completer != null && !_completer!.isCompleted) {
+      _completer!.completeError(Exception('Processing cancelled by user'));
+    }
+    _subscription = null;
+    _completer = null;
+  }
 
   /// Upload an image to the processing API
   /// Returns ImageProcessingResponse on success
@@ -20,7 +33,7 @@ class ImageProcessingService {
       // Create multipart request
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$_baseUrl/upload'), // Replace with your actual endpoint
+        Uri.parse('$_baseUrl/api/upload'), // Replace with your actual endpoint
       );
 
       // Add the image file to the request
@@ -55,7 +68,7 @@ class ImageProcessingService {
 
       // Add any additional headers if needed
       request.headers.addAll({
-        'Accept': 'application/json',
+        'Accept': 'text/event-stream',
         // Don't set Content-Type manually for multipart/form-data
         // The http package will set it automatically with the boundary
       });
@@ -69,78 +82,93 @@ class ImageProcessingService {
 
       // Send the request
       final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      logInfo('API response status: ${streamedResponse.statusCode}');
 
-      logInfo('API response status: ${response.statusCode}');
-      logInfo('API response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        try {
-          // Parse the response
-          final jsonData = json.decode(response.body) as Map<String, dynamic>;
-          
-          // Check if the API returned success
-          if (jsonData['success'] == true) {
-            final result = ImageProcessingResponse.fromJson(jsonData);
-            logInfo('Image processing successful');
-            return result;
-          } else {
-            throw Exception('API returned error: ${jsonData['error'] ?? 'Unknown error'}');
-          }
-        } catch (e) {
-          logError('Error parsing API response: $e');
-          throw Exception('Failed to parse API response: $e');
-        }
-      } else {
+      if (streamedResponse.statusCode != 200) {
+        final response = await http.Response.fromStream(streamedResponse);
         String errorMessage = 'HTTP ${response.statusCode}';
         try {
           final errorData = json.decode(response.body) as Map<String, dynamic>;
           errorMessage = errorData['error'] ?? errorData['message'] ?? errorMessage;
         } catch (e) {
-          // If response body is not JSON, use the raw body
           errorMessage = response.body.isNotEmpty ? response.body : errorMessage;
         }
         throw Exception('API request failed: $errorMessage');
       }
+
+      // Handle SSE stream
+      String fullChunk = '';
+      String currentEvent = '';
+
+      final lines = streamedResponse.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+      _completer = Completer<ImageProcessingResponse>();
+
+      _subscription = lines.listen(
+        (line) {
+          if (line.isEmpty) return;
+
+          if (line.startsWith('event: ')) {
+            currentEvent = line.substring(7).trim();
+            logInfo('SSE Event: $currentEvent');
+          } else if (line.startsWith('data: ')) {
+            final data = line.substring(6).trim();
+            logInfo('SSE Data: $data');
+
+            try {
+              final jsonData = jsonDecode(data) as Map<String, dynamic>;
+
+              if (currentEvent == 'start') {
+                logInfo('Processing started: ${jsonData['status']}');
+              } else if (currentEvent == 'token') {
+                if (jsonData.containsKey('message')) {
+                  logInfo('Progress: ${jsonData['message']}');
+                } else if (jsonData.containsKey('chunk')) {
+                  fullChunk += jsonData['chunk'] as String;
+                }
+              } else if (currentEvent == 'end') {
+                if (jsonData['status'] == 'complete') {
+                  // Parse the full chunk
+                  final fullJson = jsonDecode(fullChunk) as Map<String, dynamic>;
+                  final result = ImageProcessingResponse.fromJson(fullJson);
+                  logInfo('Image processing successful');
+                  _completer!.complete(result);
+                } else {
+                  _completer!.completeError(Exception('Processing failed: ${jsonData['status']}'));
+                }
+              }
+            } catch (e) {
+              logError('Error parsing SSE data: $e');
+              if (!_completer!.isCompleted) {
+                _completer!.completeError(e);
+              }
+            }
+          }
+        },
+        onDone: () {
+          if (!_completer!.isCompleted) {
+            _completer!.completeError(Exception('Stream ended without "end" event'));
+          }
+          _subscription = null;
+          _completer = null;
+        },
+        onError: (e) {
+          if (!_completer!.isCompleted) {
+            _completer!.completeError(e);
+          }
+          _subscription = null;
+          _completer = null;
+        },
+        cancelOnError: true,
+      );
+
+      return _completer!.future;
+
     } catch (e) {
       logError('Error processing image: $e');
       throw Exception('Failed to process image: $e');
     }
-  }
-
-  /// Test API connectivity
-  Future<bool> testConnection() async {
-    try {
-      logInfo('Testing API connectivity...');
-      final response = await http.get(
-        Uri.parse('$_baseUrl/'),
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-      
-      logInfo('Connection test response: ${response.statusCode}');
-      return response.statusCode < 500; // Accept any response that's not a server error
-    } catch (e) {
-      logError('Connection test failed: $e');
-      return false;
-    }
-  }
-
-  /// Mock implementation for testing (remove when you have real API)
-  Future<ImageProcessingResponse> processImageMock(File imageFile) async {
-    // Simulate API delay
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Mock response
-    return ImageProcessingResponse(
-      text: "Document processed successfully",
-      formFields: {
-        "Last Name": "SMITH",
-        "First Name": "JOHN",
-        "Date of Birth": "01/15/1985",
-        "Address": "123 Main St, City, State 12345",
-        "Phone": "(555) 123-4567",
-        "Email": "john.smith@email.com",
-      },
-    );
   }
 }

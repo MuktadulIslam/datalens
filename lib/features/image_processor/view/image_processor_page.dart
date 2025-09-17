@@ -29,23 +29,6 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
   @override
   void initState() {
     super.initState();
-    _testApiConnection();
-  }
-
-  /// Test API connection on app start
-  Future<void> _testApiConnection() async {
-    try {
-      final isConnected = await _service.testConnection();
-      setState(() {
-        _debugInfo = isConnected 
-            ? 'API connection successful' 
-            : 'API connection failed - server may be down';
-      });
-    } catch (e) {
-      setState(() {
-        _debugInfo = 'Connection test error: $e';
-      });
-    }
   }
 
   /// Show options to pick image from camera or gallery
@@ -189,6 +172,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
 
   /// Pick image from specified source
   Future<void> _pickImage(ImageSource source) async {
+    if (_isProcessing) {
+      _cancelProcessing();
+    }
     try {
       // Clear previous messages
       _clearMessages();
@@ -283,6 +269,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
+      _processingResult = null; // Clear previous results
       _debugInfo = 'Processing image...';
     });
 
@@ -301,6 +288,11 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
       setState(() {
         _debugInfo = 'API Error: $e';
       });
+      
+      if (e.toString().contains('Processing cancelled by user')) {
+        logInfo('Processing was cancelled by user');
+        return;
+      }
       
       // Provide more user-friendly error messages
       String userMessage = 'Failed to process image';
@@ -507,6 +499,14 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
     );
   }
 
+  void _cancelProcessing() {
+    _service.cancelProcessing();
+    setState(() {
+      _isProcessing = false;
+      _debugInfo = 'Processing cancelled';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -524,7 +524,10 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            child: Padding(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -544,12 +547,17 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                     AnimatedSlide(
                       duration: const Duration(milliseconds: 500),
                       offset: const Offset(0, 0),
-                      child: AppButton(
-                        label: _isProcessing ? 'Processing...' : 'Process Document',
-                        icon: _isProcessing ? null : Icons.auto_fix_high_rounded,
-                        isLoading: _isProcessing,
-                        onPressed: _isProcessing ? null : _processImage,
-                      ),
+                      child: _isProcessing
+                        ? AppButton(
+                            label: 'Cancel Processing',
+                            icon: Icons.cancel_rounded,
+                            onPressed: _cancelProcessing,
+                          )
+                        : AppButton(
+                            label: 'Process Document',
+                            icon: Icons.auto_fix_high_rounded,
+                            onPressed: _processImage,
+                          ),
                     ),
 
                   const SizedBox(height: 16),
@@ -569,7 +577,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                       offset: const Offset(0, 0),
                       child: _buildDebugCard(),
                     ),
-
+                ]
+                ),
+                ),
                   // Results section
                   if (_processingResult != null) ...[
                     const SizedBox(height: 32),
@@ -584,7 +594,6 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
             ),
           ),
         ),
-      ),
     );
   }
 
