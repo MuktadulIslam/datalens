@@ -58,9 +58,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                 Text(
                   'Select Image Source',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppTheme.darkGray,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: AppTheme.darkGray,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -90,7 +90,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryPurple.withOpacity(0.1),
+                                  color: AppTheme.primaryPurple.withOpacity(
+                                    0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -184,27 +186,41 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
           ? Permission.camera
           : Permission.photos;
 
-      logInfo('Requesting ${source == ImageSource.camera ? 'camera' : 'gallery'} permission...');
-      setState(() => _debugInfo = 'Requesting ${source == ImageSource.camera ? 'camera' : 'gallery'} permission...');
+      logInfo(
+        'Requesting ${source == ImageSource.camera ? 'camera' : 'gallery'} permission...',
+      );
+      setState(
+        () => _debugInfo =
+            'Requesting ${source == ImageSource.camera ? 'camera' : 'gallery'} permission...',
+      );
 
       final status = await permission.request();
 
       if (status.isDenied) {
         setState(() => _debugInfo = 'Permission denied');
-        _showError('Permission denied. Please enable ${source == ImageSource.camera ? 'camera' : 'gallery'} access in app settings.');
+        _showError(
+          'Permission denied. Please enable ${source == ImageSource.camera ? 'camera' : 'gallery'} access in app settings.',
+        );
         return;
       }
 
       if (status.isPermanentlyDenied) {
         setState(() => _debugInfo = 'Permission permanently denied');
-        _showError('Permission permanently denied. Please go to app settings and enable ${source == ImageSource.camera ? 'camera' : 'gallery'} access.');
+        _showError(
+          'Permission permanently denied. Please go to app settings and enable ${source == ImageSource.camera ? 'camera' : 'gallery'} access.',
+        );
         // Optionally open app settings
         await openAppSettings();
         return;
       }
 
-      setState(() => _debugInfo = 'Permission granted. Opening ${source == ImageSource.camera ? 'camera' : 'gallery'}...');
-      logInfo('Permission granted. Opening ${source == ImageSource.camera ? 'camera' : 'gallery'}...');
+      setState(
+        () => _debugInfo =
+            'Permission granted. Opening ${source == ImageSource.camera ? 'camera' : 'gallery'}...',
+      );
+      logInfo(
+        'Permission granted. Opening ${source == ImageSource.camera ? 'camera' : 'gallery'}...',
+      );
 
       final XFile? image = await _picker.pickImage(
         source: source,
@@ -219,17 +235,22 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
         final file = File(image.path);
         if (await file.exists()) {
           final fileSize = await file.length();
-          logInfo('Image selected successfully. Path: ${image.path}, Size: ${fileSize} bytes');
+          logInfo(
+            'Image selected successfully. Path: ${image.path}, Size: ${fileSize} bytes',
+          );
 
           setState(() {
             _selectedImage = file;
             _processingResult = null; // Clear previous results
             _errorMessage = null;
-            _debugInfo = 'Image selected successfully (${(fileSize / 1024).round()} KB)';
+            _debugInfo =
+                'Image selected successfully (${(fileSize / 1024).round()} KB)';
           });
         } else {
           setState(() => _debugInfo = 'Selected file does not exist');
-          _showError('Selected image file does not exist or is not accessible.');
+          _showError(
+            'Selected image file does not exist or is not accessible.',
+          );
         }
       } else {
         logInfo('User cancelled image selection');
@@ -244,15 +265,21 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
 
       if (e.toString().contains('camera')) {
         errorMessage = 'Camera access failed';
-        troubleshooting = '• Make sure no other app is using the camera\n• Check camera permissions in app settings\n• Try restarting the app';
-      } else if (e.toString().contains('gallery') || e.toString().contains('photo') || e.toString().contains('storage')) {
+        troubleshooting =
+            '• Make sure no other app is using the camera\n• Check camera permissions in app settings\n• Try restarting the app';
+      } else if (e.toString().contains('gallery') ||
+          e.toString().contains('photo') ||
+          e.toString().contains('storage')) {
         errorMessage = 'Gallery access failed';
-        troubleshooting = '• Grant storage/gallery permissions\n• Make sure you have photos in your gallery\n• Try selecting a different image';
+        troubleshooting =
+            '• Grant storage/gallery permissions\n• Make sure you have photos in your gallery\n• Try selecting a different image';
       } else if (e.toString().contains('permission')) {
         errorMessage = 'Permission denied';
-        troubleshooting = '• Go to Settings > Apps > Doc Ext > Permissions\n• Enable Camera and Storage permissions\n• Restart the app';
+        troubleshooting =
+            '• Go to Settings > Apps > Doc Ext > Permissions\n• Enable Camera and Storage permissions\n• Restart the app';
       } else {
-        troubleshooting = '• Make sure the device has a camera/gallery\n• Check available storage space\n• Try restarting the app';
+        troubleshooting =
+            '• Make sure the device has a camera/gallery\n• Check available storage space\n• Try restarting the app';
       }
 
       _showError('$errorMessage\n\nTroubleshooting:\n$troubleshooting');
@@ -279,7 +306,8 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
 
       setState(() {
         _processingResult = result;
-        _debugInfo = 'Processing completed successfully in ${result.processingTime?.toStringAsFixed(2) ?? 'unknown'} seconds';
+        _debugInfo =
+            'Processing completed successfully in ${result.processingTime?.toStringAsFixed(2) ?? 'unknown'} seconds';
       });
 
       logInfo('Image processed successfully');
@@ -288,24 +316,29 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
       setState(() {
         _debugInfo = 'API Error: $e';
       });
-      
+
       if (e.toString().contains('Processing cancelled by user')) {
         logInfo('Processing was cancelled by user');
         return;
       }
-      
+
       // Provide more user-friendly error messages
       String userMessage = 'Failed to process image';
-      if (e.toString().contains('Connection refused') || e.toString().contains('SocketException')) {
-        userMessage = 'Cannot connect to the server. Please check your internet connection and make sure the API server is running.';
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException')) {
+        userMessage =
+            'Cannot connect to the server. Please check your internet connection and make sure the API server is running.';
       } else if (e.toString().contains('HTTP 404')) {
-        userMessage = 'API endpoint not found. Please check the server configuration.';
+        userMessage =
+            'API endpoint not found. Please check the server configuration.';
       } else if (e.toString().contains('HTTP 500')) {
-        userMessage = 'Server error occurred while processing the image. Please try again.';
+        userMessage =
+            'Server error occurred while processing the image. Please try again.';
       } else if (e.toString().contains('Failed to parse API response')) {
-        userMessage = 'Received invalid response from server. Please check the API format.';
+        userMessage =
+            'Received invalid response from server. Please check the API format.';
       }
-      
+
       _showError(userMessage);
     } finally {
       setState(() {
@@ -322,10 +355,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -373,16 +403,16 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                   Text(
                     'Document Scanner',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppTheme.darkGray,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppTheme.darkGray,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Capture & extract document data',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.darkGray.withOpacity(0.7),
-                        ),
+                      color: AppTheme.darkGray.withOpacity(0.7),
+                    ),
                   ),
                 ],
               ),
@@ -400,10 +430,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.red.shade50,
-            Colors.red.shade100.withOpacity(0.5),
-          ],
+          colors: [Colors.red.shade50, Colors.red.shade100.withOpacity(0.5)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.red.shade200),
@@ -439,10 +466,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
           const SizedBox(height: 12),
           Text(
             _errorMessage!,
-            style: TextStyle(
-              color: Colors.red.shade700,
-              height: 1.4,
-            ),
+            style: TextStyle(color: Colors.red.shade700, height: 1.4),
           ),
         ],
       ),
@@ -511,89 +535,89 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.lightGray,
-              Colors.white,
-            ],
+            colors: [AppTheme.lightGray, Colors.white],
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header section
-                  _buildHeader(),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header section
+                      _buildHeader(),
 
+                      const SizedBox(height: 32),
+
+                      // Image selection section
+                      _buildImageSection(),
+
+                      const SizedBox(height: 10),
+
+                      // Upload button
+                      if (_selectedImage != null)
+                        AnimatedSlide(
+                          duration: const Duration(milliseconds: 500),
+                          offset: const Offset(0, 0),
+                          child: _isProcessing
+                              ? AppButton(
+                                  label: 'Cancel Processing',
+                                  icon: Icons.cancel_rounded,
+                                  onPressed: _cancelProcessing,
+                                )
+                              : AppButton(
+                                  label: 'Process Document',
+                                  icon: Icons.auto_fix_high_rounded,
+                                  onPressed: _processImage,
+                                ),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Error message
+                      if (_errorMessage != null)
+                        AnimatedSlide(
+                          duration: const Duration(milliseconds: 300),
+                          offset: const Offset(0, 0),
+                          child: _buildErrorCard(),
+                        ),
+
+                      // Debug info (only show in debug mode)
+                      if (_debugInfo != null &&
+                          const bool.fromEnvironment('dart.vm.product') ==
+                              false)
+                        AnimatedSlide(
+                          duration: const Duration(milliseconds: 300),
+                          offset: const Offset(0, 0),
+                          child: _buildDebugCard(),
+                        ),
+                    ],
+                  ),
+                ),
+                // Results section
+                if (_processingResult != null) ...[
                   const SizedBox(height: 32),
-
-                  // Image selection section
-                  _buildImageSection(),
-
-                  const SizedBox(height: 10),
-
-                  // Upload button
-                  if (_selectedImage != null)
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 500),
-                      offset: const Offset(0, 0),
-                      child: _isProcessing
-                        ? AppButton(
-                            label: 'Cancel Processing',
-                            icon: Icons.cancel_rounded,
-                            onPressed: _cancelProcessing,
-                          )
-                        : AppButton(
-                            label: 'Process Document',
-                            icon: Icons.auto_fix_high_rounded,
-                            onPressed: _processImage,
-                          ),
-                    ),
-
-                  const SizedBox(height: 16),
-
-                  // Error message
-                  if (_errorMessage != null)
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 300),
-                      offset: const Offset(0, 0),
-                      child: _buildErrorCard(),
-                    ),
-
-                  // Debug info (only show in debug mode)
-                  if (_debugInfo != null && const bool.fromEnvironment('dart.vm.product') == false)
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 300),
-                      offset: const Offset(0, 0),
-                      child: _buildDebugCard(),
-                    ),
-                ]
-                ),
-                ),
-                  // Results section
-                  if (_processingResult != null) ...[
-                    const SizedBox(height: 32),
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 600),
-                      offset: const Offset(0, 0),
-                      child: _buildResultsSection(),
-                    ),
-                  ],
+                  AnimatedSlide(
+                    duration: const Duration(milliseconds: 600),
+                    offset: const Offset(0, 0),
+                    child: _buildResultsSection(),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -625,9 +649,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
               Text(
                 'Document Upload',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppTheme.darkGray,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppTheme.darkGray,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -646,10 +670,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                     : LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          AppTheme.lightGray,
-                          Colors.white,
-                        ],
+                        colors: [AppTheme.lightGray, Colors.white],
                       ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -661,10 +682,11 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (_selectedImage != null
-                            ? AppTheme.successGreen
-                            : AppTheme.primaryPurple)
-                        .withOpacity(0.1),
+                    color:
+                        (_selectedImage != null
+                                ? AppTheme.successGreen
+                                : AppTheme.primaryPurple)
+                            .withOpacity(0.1),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -731,7 +753,8 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                           const SizedBox(height: 20),
                           Text(
                             'Tap to select document',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
                                   color: AppTheme.darkGray,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -739,7 +762,8 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                           const SizedBox(height: 8),
                           Text(
                             'Camera or Gallery',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: AppTheme.darkGray.withOpacity(0.6),
                                 ),
                           ),
@@ -822,12 +846,13 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
               Text(
                 'Processing Results',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppTheme.darkGray,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppTheme.darkGray,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
+
           // const SizedBox(height: 24),
 
           // // Extracted text - commented out for now
@@ -887,7 +912,6 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
           //     ],
           //   ),
           // ),
-
           const SizedBox(height: 12.0),
 
           // Form fields
@@ -919,10 +943,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        AppTheme.lightGray,
-                        Colors.white,
-                      ],
+                      colors: [AppTheme.lightGray, Colors.white],
                     ),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
@@ -941,7 +962,10 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                     children: [
                       // Field name - styled as a label
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryPurple.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
