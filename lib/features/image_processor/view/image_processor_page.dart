@@ -7,6 +7,7 @@ import 'package:datalens/core/utils/logger.dart';
 import 'package:datalens/core/app_theme.dart';
 import 'package:datalens/features/image_processor/service/image_processing_service.dart';
 import 'package:datalens/features/image_processor/model/image_processing_response.dart';
+import 'package:datalens/features/image_processor/service/database_service.dart';
 
 /// Main page for image processing functionality
 class ImageProcessorPage extends StatefulWidget {
@@ -19,12 +20,14 @@ class ImageProcessorPage extends StatefulWidget {
 class _ImageProcessorPageState extends State<ImageProcessorPage> {
   final ImagePicker _picker = ImagePicker();
   final ImageProcessingService _service = ImageProcessingService();
+  final DatabaseService _dbService = DatabaseService();
 
   File? _selectedImage;
   ImageProcessingResponse? _processingResult;
   bool _isProcessing = false;
   String? _errorMessage;
   String? _debugInfo;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -564,8 +567,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
 
                       const SizedBox(height: 10),
 
-                      // Upload button
-                      if (_selectedImage != null)
+                      if (_selectedImage != null) ...[
                         AnimatedSlide(
                           duration: const Duration(milliseconds: 500),
                           offset: const Offset(0, 0),
@@ -581,6 +583,67 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                                   onPressed: _processImage,
                                 ),
                         ),
+                        const SizedBox(height: 10),
+                        Opacity(
+                          opacity: _processingResult != null ? 1.0 : 0.2,
+                          child: AppButton(
+                            label: _isSaving ? 'Saving...' : 'Save to Database',
+                            icon: Icons.save_rounded,
+                            isLoading: _isSaving,
+                            onPressed: _processingResult != null && !_isSaving
+                                ? () async {
+                                    setState(() {
+                                      _isSaving = true;
+                                    });
+                                    try {
+                                      await _dbService.connect();
+                                      await _dbService.insertPatientRecord(_processingResult!.formFields);
+                                      await _dbService.close();
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: Colors.green.withOpacity(0.9),
+                                          content: const Row(
+                                            children: [
+                                              Icon(Icons.check_circle_outline, color: Colors.white),
+                                              SizedBox(width: 8),
+                                              Text('Data saved successfully'),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                      setState(() {
+                                        _debugInfo = 'Data saved successfully';
+                                      });
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: Colors.red.withOpacity(0.9),
+                                          content: const Row(
+                                            children: [
+                                              Icon(Icons.error_outline, color: Colors.white),
+                                              SizedBox(width: 8),
+                                              Text('Failed to save data'),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                      setState(() {
+                                        _debugInfo = 'Failed to save: $e';
+                                      });
+                                    } finally {
+                                      setState(() {
+                                        _isSaving = false;
+                                      });
+                                    }
+                                  }
+                                : null,
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 16),
 
@@ -722,7 +785,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                             ),
                             child: Icon(
                               Icons.check,
-                               color: Colors.white,
+                              color: Colors.white,
                               // color: Colors.white,
                               size: 20,
                               weight: 700,
@@ -807,7 +870,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isProcessing ? 'Document is processing...' : 'Document ready for processing',
+                    _isProcessing
+                        ? 'Document is processing...'
+                        : 'Document ready for processing',
                     style: TextStyle(
                       color: AppTheme.successGreen,
                       fontWeight: FontWeight.w600,
@@ -999,7 +1064,10 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                           // const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
@@ -1008,7 +1076,9 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.primaryPurple.withOpacity(0.05),
+                                  color: AppTheme.primaryPurple.withOpacity(
+                                    0.05,
+                                  ),
                                   blurRadius: 4,
                                   offset: const Offset(0, 1),
                                 ),
