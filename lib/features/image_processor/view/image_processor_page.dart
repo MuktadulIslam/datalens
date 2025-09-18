@@ -8,6 +8,7 @@ import 'package:datalens/core/app_theme.dart';
 import 'package:datalens/features/image_processor/service/image_processing_service.dart';
 import 'package:datalens/features/image_processor/model/image_processing_response.dart';
 import 'package:datalens/features/image_processor/service/database_service.dart';
+import 'package:flutter/services.dart';
 
 /// Main page for image processing functionality
 class ImageProcessorPage extends StatefulWidget {
@@ -23,15 +24,23 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
   final DatabaseService _dbService = DatabaseService();
 
   File? _selectedImage;
-  ImageProcessingResponse? _processingResult;
+  FormFields? _processingResult;
   bool _isProcessing = false;
   String? _errorMessage;
   String? _debugInfo;
   bool _isSaving = false;
 
+  Map<String, TextEditingController> _fieldControllers = {};
+
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _fieldControllers.values.forEach((controller) => controller.dispose());
+    super.dispose();
   }
 
   /// Show options to pick image from camera or gallery
@@ -249,6 +258,7 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
             _debugInfo =
                 'Image selected successfully (${(fileSize / 1024).round()} KB)';
           });
+          _clearControllers();
         } else {
           setState(() => _debugInfo = 'Selected file does not exist');
           _showError(
@@ -307,11 +317,27 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
       // Use real API implementation
       final result = await _service.processImage(_selectedImage!);
 
+      _clearControllers();
+
       setState(() {
         _processingResult = result;
-        _debugInfo =
-            'Processing completed successfully in ${result.processingTime?.toStringAsFixed(2) ?? 'unknown'} seconds';
+        _debugInfo = 'Processing completed successfully';
+        // Reset save state for new processing result
+        _processingResult!.isSaved = false;
       });
+
+      if (_processingResult != null) {
+        _fieldControllers['name'] = TextEditingController(text: _processingResult!.name);
+        _fieldControllers['age'] = TextEditingController(text: _processingResult!.age.toString());
+        _fieldControllers['address'] = TextEditingController(text: _processingResult!.address);
+        _fieldControllers['chiefComplaint'] = TextEditingController(text: _processingResult!.chiefComplaint);
+        _fieldControllers['pastSurgery'] = TextEditingController(text: _processingResult!.pastSurgery);
+        _fieldControllers['doctorsNotes'] = TextEditingController(text: _processingResult!.doctorsNotes);
+        _fieldControllers['rbs'] = TextEditingController(text: _processingResult!.examinationVitals.rbs.toString());
+        _fieldControllers['bpSystolic'] = TextEditingController(text: _processingResult!.examinationVitals.bpSystolic.toString());
+        _fieldControllers['bpDiastolic'] = TextEditingController(text: _processingResult!.examinationVitals.bpDiastolic.toString());
+        _fieldControllers['spO2'] = TextEditingController(text: _processingResult!.examinationVitals.spO2.toString());
+      }
 
       logInfo('Image processed successfully');
     } catch (e) {
@@ -534,6 +560,11 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
     });
   }
 
+  void _clearControllers() {
+    _fieldControllers.values.forEach((controller) => controller.dispose());
+    _fieldControllers.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -585,20 +616,27 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                         ),
                         const SizedBox(height: 10),
                         Opacity(
-                          opacity: _processingResult != null ? 1.0 : 0.2,
+                          opacity: _processingResult != null && !_processingResult!.isSaved ? 1.0 : 0.2,
                           child: AppButton(
-                            label: _isSaving ? 'Saving...' : 'Save to Database',
-                            icon: Icons.save_rounded,
+                            label: _isSaving 
+                                ? 'Saving...' 
+                                : _processingResult?.isSaved == true 
+                                    ? 'Already Saved' 
+                                    : 'Save to Database',
+                            icon: _processingResult?.isSaved == true 
+                                ? Icons.check_circle_rounded 
+                                : Icons.save_rounded,
                             isLoading: _isSaving,
-                            onPressed: _processingResult != null && !_isSaving
+                            onPressed: _processingResult != null && !_isSaving && !_processingResult!.isSaved
                                 ? () async {
                                     setState(() {
                                       _isSaving = true;
                                     });
                                     try {
                                       await _dbService.connect();
-                                      await _dbService.insertPatientRecord(_processingResult!.formFields);
+                                      await _dbService.insertPatientRecord(_processingResult!);
                                       await _dbService.close();
+                                      _processingResult!.isSaved = true;
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
@@ -615,6 +653,8 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                                       );
                                       setState(() {
                                         _debugInfo = 'Data saved successfully';
+                                        // The isSaved flag is automatically set in the database service
+                                        // but we need to trigger a rebuild to update the UI
                                       });
                                     } catch (e) {
                                       ScaffoldMessenger.of(
@@ -1036,70 +1076,286 @@ class _ImageProcessorPageState extends State<ImageProcessorPage> {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _processingResult!.formFields.entries.map((entry) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            // decoration: BoxDecoration(
-                            //   color: AppTheme.primaryPurple.withOpacity(0.1),
-                            //   borderRadius: BorderRadius.circular(8),
-                            // ),
-                            child: Text(
-                              entry.key,
-                              style: TextStyle(
-                                color: AppTheme.primaryPurple,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          // const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppTheme.primaryPurple.withOpacity(0.2),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryPurple.withOpacity(
-                                    0.05,
-                                  ),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              entry.value,
-                              style: TextStyle(
-                                color: AppTheme.darkGray,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                  children: [
+                    _buildInputField(
+                      label: 'Name',
+                      fieldKey: 'name',
+                      type: 'text',
+                      valueGetter: () => _processingResult!.name,
+                      onUpdate: (v) => _processingResult!.name = v,
+                    ),
+                    _buildInputField(
+                      label: 'Age',
+                      fieldKey: 'age',
+                      type: 'int',
+                      valueGetter: () => _processingResult!.age.toString(),
+                      onUpdate: (v) => _processingResult!.age = v,
+                    ),
+                    _buildSelectionField<String>(
+                      label: 'Gender',
+                      options: {'Male': 'Male', 'Female': 'Female', 'Other': 'Other'},
+                      valueGetter: () => _processingResult!.gender,
+                      onUpdate: (v) => setState(() => _processingResult!.gender = v),
+                    ),
+                    _buildSelectionField<String>(
+                      label: 'Marital Status',
+                      options: {'Single': 'Single', 'Married': 'Married'},
+                      valueGetter: () => _processingResult!.maritalStatus,
+                      onUpdate: (v) => setState(() => _processingResult!.maritalStatus = v),
+                    ),
+                    _buildInputField(
+                      label: 'Address',
+                      fieldKey: 'address',
+                      type: 'text',
+                      valueGetter: () => _processingResult!.address,
+                      onUpdate: (v) => _processingResult!.address = v,
+                    ),
+                    _buildInputField(
+                      label: 'Chief Complaint',
+                      fieldKey: 'chiefComplaint',
+                      type: 'text',
+                      valueGetter: () => _processingResult!.chiefComplaint,
+                      onUpdate: (v) => _processingResult!.chiefComplaint = v,
+                    ),
+                    _buildInputField(
+                      label: 'Past Surgery',
+                      fieldKey: 'pastSurgery',
+                      type: 'text',
+                      valueGetter: () => _processingResult!.pastSurgery,
+                      onUpdate: (v) => _processingResult!.pastSurgery = v,
+                    ),
+                    _buildInputField(
+                      label: 'Doctors Notes',
+                      fieldKey: 'doctorsNotes',
+                      type: 'text',
+                      valueGetter: () => _processingResult!.doctorsNotes,
+                      onUpdate: (v) => _processingResult!.doctorsNotes = v,
+                    ),
+                    _buildSelectionField<bool>(
+                      label: 'DM (Medical History)',
+                      options: {'Yes': true, 'No': false},
+                      valueGetter: () => _processingResult!.medicalHistory.dm,
+                      onUpdate: (v) => setState(() => _processingResult!.medicalHistory.dm = v),
+                    ),
+                    _buildSelectionField<bool>(
+                      label: 'HTN (Medical History)',
+                      options: {'Yes': true, 'No': false},
+                      valueGetter: () => _processingResult!.medicalHistory.htn,
+                      onUpdate: (v) => setState(() => _processingResult!.medicalHistory.htn = v),
+                    ),
+                    _buildSelectionField<bool>(
+                      label: 'BA (Medical History)',
+                      options: {'Yes': true, 'No': false},
+                      valueGetter: () => _processingResult!.medicalHistory.ba,
+                      onUpdate: (v) => setState(() => _processingResult!.medicalHistory.ba = v),
+                    ),
+                    _buildSelectionField<bool>(
+                      label: 'CVD (Medical History)',
+                      options: {'Yes': true, 'No': false},
+                      valueGetter: () => _processingResult!.medicalHistory.cvd,
+                      onUpdate: (v) => setState(() => _processingResult!.medicalHistory.cvd = v),
+                    ),
+                    _buildSelectionField<bool>(
+                      label: 'CKD (Medical History)',
+                      options: {'Yes': true, 'No': false},
+                      valueGetter: () => _processingResult!.medicalHistory.ckd,
+                      onUpdate: (v) => setState(() => _processingResult!.medicalHistory.ckd = v),
+                    ),
+                    _buildInputField(
+                      label: 'RBS (Examination Vitals)',
+                      fieldKey: 'rbs',
+                      type: 'double',
+                      valueGetter: () => _processingResult!.examinationVitals.rbs.toString(),
+                      onUpdate: (v) => _processingResult!.examinationVitals.rbs = v,
+                    ),
+                    _buildInputField(
+                      label: 'BP Systolic (Examination Vitals)',
+                      fieldKey: 'bpSystolic',
+                      type: 'int',
+                      valueGetter: () => _processingResult!.examinationVitals.bpSystolic.toString(),
+                      onUpdate: (v) => _processingResult!.examinationVitals.bpSystolic = v,
+                    ),
+                    _buildInputField(
+                      label: 'BP Diastolic (Examination Vitals)',
+                      fieldKey: 'bpDiastolic',
+                      type: 'int',
+                      valueGetter: () => _processingResult!.examinationVitals.bpDiastolic.toString(),
+                      onUpdate: (v) => _processingResult!.examinationVitals.bpDiastolic = v,
+                    ),
+                    _buildInputField(
+                      label: 'SpO2 (Examination Vitals)',
+                      fieldKey: 'spO2',
+                      type: 'double',
+                      valueGetter: () => _processingResult!.examinationVitals.spO2.toString(),
+                      onUpdate: (v) => _processingResult!.examinationVitals.spO2 = v,
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required String fieldKey,
+    required String type,
+    required String Function() valueGetter,
+    required Function(dynamic) onUpdate,
+  }) {
+    final controller = _fieldControllers[fieldKey]!;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.primaryPurple,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+            ),
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: const TextStyle(
+                color: AppTheme.darkGray,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              keyboardType: type == 'text'
+                  ? TextInputType.text
+                  : TextInputType.numberWithOptions(decimal: type == 'double'),
+              inputFormatters: type == 'text'
+                  ? null
+                  : [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
+              onChanged: (newVal) {
+                if (type == 'int') {
+                  final parsed = int.tryParse(newVal);
+                  if (parsed != null) onUpdate(parsed);
+                } else if (type == 'double') {
+                  final parsed = double.tryParse(newVal);
+                  if (parsed != null) onUpdate(parsed);
+                } else {
+                  onUpdate(newVal);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Update _buildSelectionField to use DropdownButton
+  Widget _buildSelectionField<T>({
+    required String label,
+    required Map<String, T> options,
+    required T Function() valueGetter,
+    required Function(T) onUpdate,
+  }) {
+    String? getCurrentDisplay() {
+      final currentValue = valueGetter();
+      final entry = options.entries.firstWhere(
+        (entry) => entry.value == currentValue,
+        orElse: () => MapEntry('', null as T),
+      );
+      return entry.key.isNotEmpty ? entry.key : null;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.primaryPurple,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryPurple.withOpacity(0.2),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryPurple.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: getCurrentDisplay(),
+                icon: const SizedBox.shrink(), // Hide the default icon
+                isExpanded: true,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 0,
+                ),
+                style: const TextStyle(
+                  color: AppTheme.darkGray,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    final selectedValue = options[newValue];
+                    if (selectedValue != null) {
+                      onUpdate(selectedValue);
+                      setState(() {}); // Refresh UI
+                    }
+                  }
+                },
+                items: options.keys.map<DropdownMenuItem<String>>((String key) {
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Text(key),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ],
       ),

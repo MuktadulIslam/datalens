@@ -9,10 +9,10 @@ import 'dart:async'; // Added for StreamSubscription and Completer
 /// Service class for handling image processing API calls
 class ImageProcessingService {
   /// Base URL for the API - you can configure this in app_config later
-  static const String _baseUrl = 'https://datalens-541929b8c017.herokuapp.com'; // Replace with your actual API endpoint
+  static const String _baseUrl = 'http://118.179.215.4:8010'; // Replace with your actual API endpoint
 
   StreamSubscription<String>? _subscription;
-  Completer<ImageProcessingResponse>? _completer;
+  Completer<FormFields>? _completer;
 
   void cancelProcessing() {
     _subscription?.cancel();
@@ -26,7 +26,7 @@ class ImageProcessingService {
   /// Upload an image to the processing API
   /// Returns ImageProcessingResponse on success
   /// Throws exception on failure
-  Future<ImageProcessingResponse> processImage(File imageFile) async {
+  Future<FormFields> processImage(File imageFile) async {
     try {
       logInfo('Starting image upload...');
 
@@ -104,7 +104,7 @@ class ImageProcessingService {
         .transform(utf8.decoder)
         .transform(const LineSplitter());
 
-      _completer = Completer<ImageProcessingResponse>();
+      _completer = Completer<FormFields>();
 
       _subscription = lines.listen(
         (line) {
@@ -132,7 +132,7 @@ class ImageProcessingService {
                 if (jsonData['status'] == 'complete') {
                   // Parse the full chunk
                   final fullJson = jsonDecode(fullChunk) as Map<String, dynamic>;
-                  final result = ImageProcessingResponse.fromJson(fullJson);
+                  final result = FormFields.fromJson(fullJson);
                   logInfo('Image processing successful');
                   _completer!.complete(result);
                 } else {
