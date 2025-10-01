@@ -33,8 +33,7 @@ class FormFields {
 
   factory FormFields.fromJson(Map<String, dynamic>? json) {
     json ??= {};
-    final extractedData = json['extracted_data'] as Map<String, dynamic>? ?? {};
-    final formFieldsJson = extractedData['form_fields'] as Map<String, dynamic>? ?? {};
+    final formFieldsJson = json['form_fields'] as Map<String, dynamic>? ?? {};
 
     return FormFields(
       name: formFieldsJson['name'] as String? ?? '',

@@ -19,8 +19,8 @@ class DatabaseService {
   }
 
   Future<void> insertPatientRecord(FormFields patientData) async {
-    String genderCode = patientData.gender.toLowerCase() == 'male' ? 'M' : (patientData.gender.toLowerCase() == 'female' ? 'F' : 'O');
-    String isMarried = patientData.maritalStatus.toLowerCase() == 'married' ? 'Y' : 'N';
+    String genderCode = patientData.gender.toLowerCase() == 'male' ? '1' : (patientData.gender.toLowerCase() == 'female' ? '2' : '3');
+    String isMarried = patientData.maritalStatus.toLowerCase() == 'single' ? '1' : '2';
     
     // Generate answer JSON from patient data
     String answerJson = _generateAnswerJson(patientData);
@@ -67,11 +67,11 @@ select get_guid(),
         isMarried,                                                         // is_married
         patientData.address,                                               // address
         patientData.chiefComplaint,                                        // chief_complaint
-        patientData.medicalHistory.dm ? '1' : '0',                        // has_diabetes_mellitus
-        patientData.medicalHistory.htn ? '1' : '0',                       // has_hypertension
-        patientData.medicalHistory.ba ? '1' : '0',                        // has_bronchial_asthma
-        patientData.medicalHistory.cvd ? '1' : '0',                       // has_cardiovascular_disease
-        patientData.medicalHistory.ckd ? '1' : '0',                       // has_chronic_kidney_disease
+        patientData.medicalHistory.dm ? '1' : '2',                        // has_diabetes_mellitus
+        patientData.medicalHistory.htn ? '1' : '2',                       // has_hypertension
+        patientData.medicalHistory.ba ? '1' : '2',                        // has_bronchial_asthma
+        patientData.medicalHistory.cvd ? '1' : '2',                       // has_cardiovascular_disease
+        patientData.medicalHistory.ckd ? '1' : '2',                       // has_chronic_kidney_disease
         patientData.pastSurgery,                                          // past_surgery
         patientData.examinationVitals.rbs.toInt(),                        // random_blood_sugar
         patientData.examinationVitals.bpSystolic,                         // blood_pressure (using systolic)
@@ -88,14 +88,14 @@ select get_guid(),
       "name": patientData.name,
       "age": patientData.age,
       "gender": patientData.gender.toLowerCase() == 'male' ? '1' : (patientData.gender.toLowerCase() == 'female' ? '2' : '3'),
-      "is_married": patientData.maritalStatus.toLowerCase() == 'married' ? '1' : '0',
+      "is_married": patientData.maritalStatus.toLowerCase() == 'single' ? '1' : '2',
       "address": patientData.address,
       "chief_complaint": patientData.chiefComplaint,
-      "has_diabetes_mellitus": patientData.medicalHistory.dm ? '1' : '0',
-      "has_hypertension": patientData.medicalHistory.htn ? '1' : '0',
-      "has_bronchial_asthma": patientData.medicalHistory.ba ? '1' : '0',
-      "has_cardiovascular_disease": patientData.medicalHistory.cvd ? '1' : '0',
-      "has_chronic_kidney_disease": patientData.medicalHistory.ckd ? '1' : '0',
+      "has_diabetes_mellitus": patientData.medicalHistory.dm ? '1' : '2',
+      "has_hypertension": patientData.medicalHistory.htn ? '1' : '2',
+      "has_bronchial_asthma": patientData.medicalHistory.ba ? '1' : '2',
+      "has_cardiovascular_disease": patientData.medicalHistory.cvd ? '1' : '2',
+      "has_chronic_kidney_disease": patientData.medicalHistory.ckd ? '1' : '2',
       "past_surgery": patientData.pastSurgery,
       "random_blood_sugar": patientData.examinationVitals.rbs.toInt(),
       "blood_pressure": patientData.examinationVitals.bpSystolic,
